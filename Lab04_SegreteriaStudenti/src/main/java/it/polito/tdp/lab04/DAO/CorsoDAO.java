@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -67,7 +68,7 @@ public class CorsoDAO {
 	public List<Studente> getStudentiIscrittiAlCorso(Corso corso) {
 		final String sql = "SELECT * FROM iscrizione WHERE codins=?";
 
-		List<Studente> studenti = new LinkedList<Studente>();
+		List<Studente> studenti = new ArrayList<Studente>();
 		StudenteDAO studente = new StudenteDAO();
 
 		try {
@@ -105,11 +106,7 @@ public class CorsoDAO {
 	/*
 	 * Data una matricola ed il codice insegnamento, iscrivi lo studente al corso.
 	 */
-	public boolean inscriviStudenteACorso(Studente studente, Corso corso) {
-		// TODO
-		// ritorna true se l'iscrizione e' avvenuta con successo
-		return false;
-	}
+	
 	
 	public List<Corso> getCorsiStudente(Studente studente){
 		final String sql = "SELECT codins from iscrizione WHERE matricola=?";
@@ -184,6 +181,31 @@ public class CorsoDAO {
 			throw new RuntimeException("Errore Db", e);
 		}
 		
+	}
+	
+	public boolean inscriviStudenteACorso(Studente studente, Corso corso) {
+		String sql = "INSERT IGNORE INTO `iscritticorsi`.`iscrizione` (`matricola`, `codins`) VALUES(?,?)";
+		boolean returnValue = false;
+		
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, studente.getMatricola());
+			st.setString(2, corso.getCodins());
+			
+			int res = st.executeUpdate();	
+
+			if (res == 1)
+				returnValue = true;
+
+			conn.close();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Errore Db", e);
+		}
+		
+		return returnValue;
 	}
 
 }

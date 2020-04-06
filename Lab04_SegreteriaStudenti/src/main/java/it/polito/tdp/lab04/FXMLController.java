@@ -26,6 +26,7 @@ import javafx.scene.control.TextField;
 public class FXMLController {
 	
 	private Model model;
+	private List<Corso> corsiCaricati;
 	CorsoDAO corso = new CorsoDAO();
 	StudenteDAO studente = new StudenteDAO();
 	ObservableList corsi = FXCollections.observableArrayList();
@@ -75,39 +76,36 @@ public class FXMLController {
      */
     void doCercaCorsi(ActionEvent event) {
     	this.txtRisultato.clear();
+    	this.txtNome.clear();
+    	this.txtCognome.clear();
+    	try {
     	String scelto = (String) choiceBox.getValue();
-    	int matricola = Integer.parseInt(this.txtMatricola.getText());
+    	String matr=this.txtMatricola.getText();
+    	int matricola = Integer.parseInt(matr);
     	Studente s = this.studente.getStudente(matricola);
     	if(s==null) {
-    		txtRisultato.appendText("Errore!");
-    	}
-    	if(scelto.compareTo("Corsi")==0) {    	
+    		txtRisultato.appendText("Errore: Matricola non presente!");
+    		return;
+    	} 	
     	List<Corso> corsi = this.corso.getCorsiStudente(s);
-    	for(Corso c : corsi) {
-    		this.txtRisultato.appendText(c.toString()+"\n");
-    	   }
-    	}
-    	else {
-    		Corso corsoScelto = null;
-        	for(Corso c : this.corso.getTuttiICorsi()) {
-        		if(c.getNome().compareTo(scelto)==0) {
-        			corsoScelto = c;
-        		}
-        	}
-        	List<Studente> studenti = this.corso.getStudentiIscrittiAlCorso(corsoScelto);
-        	for(Studente st : studenti) {
-        		if(st.equals(s)) {
-        			this.txtRisultato.appendText("Studente già iscritto al corso!");
-        			return ;
-        		}
-        		else {
-        			this.txtRisultato.appendText("Studente non iscritto al corso!");
-        			return ;
-        		}
-        		
-        	}
+    	StringBuilder sb = new StringBuilder();
+
+		for (Corso corso : corsi) {
+			sb.append(String.format("%-8s ", corso.getCodins()));
+			sb.append(String.format("%-4s ", corso.getNumeroCrediti()));
+			sb.append(String.format("%-45s ", corso.getNome()));
+			sb.append(String.format("%-4s ", corso.getPeriodoDidattico()));
+			sb.append("\n");
+		}
+		txtRisultato.appendText(sb.toString());
+    	
+    	
         	
     		
+    	}catch(NumberFormatException ec) {
+    		this.txtRisultato.appendText("Formato della matricola non corretto!");
+    	}catch(RuntimeException r) {
+    		txtRisultato.setText("ERRORE DI CONNESSIONE AL DATABASE!");
     	}
     	
     	
@@ -117,6 +115,7 @@ public class FXMLController {
     @FXML
     void doCercaIscrittiCorso(ActionEvent event) {
     	this.txtRisultato.clear();
+    	try {
     	String scelto = (String) choiceBox.getValue();
     	if(scelto.compareTo("Corsi")==0) {
     		this.txtRisultato.appendText("Errore: scegli un corso della lista!");
@@ -129,8 +128,20 @@ public class FXMLController {
     		}
     	}
     	List<Studente> studenti = this.corso.getStudentiIscrittiAlCorso(corsoScelto);
-    	for(Studente s : studenti) {
-    		this.txtRisultato.appendText(s.toString()+"\n");
+    	StringBuilder sb = new StringBuilder();
+
+		for (Studente studente : studenti) {
+
+			sb.append(String.format("%-10s ", studente.getMatricola()));
+			sb.append(String.format("%-20s ", studente.getCognome()));
+			sb.append(String.format("%-20s ", studente.getNome()));
+			sb.append(String.format("%-10s ", studente.getCDS()));
+			sb.append("\n");
+		}
+
+		txtRisultato.appendText(sb.toString());
+        }catch(RuntimeException r) {
+    		txtRisultato.setText("ERRORE DI CONNESSIONE AL DATABASE!"); 
     	}
     		
     	
@@ -139,20 +150,69 @@ public class FXMLController {
 
     @FXML
     void doIscrivi(ActionEvent event) {
-
-    }
-    
-    @FXML
-    void doCompleta(ActionEvent event) {
-    	int matricola = Integer.parseInt(this.txtMatricola.getText());
+    	this.txtRisultato.clear();
+    	try{String scelto = (String) choiceBox.getValue();
+    	if(scelto.compareTo("Corsi")==0) {
+    		this.txtRisultato.appendText("Errore: scegli un corso della lista!");
+    		return;
+    	}
+    	Corso corsoScelto = null;
+    	for(Corso c : this.corso.getTuttiICorsi()) {
+    		if(c.getNome().compareTo(scelto)==0) {
+    			corsoScelto = c;
+    		}
+    	}
+    	String matr=this.txtMatricola.getText();
+    	for(int i=0; i<matr.length();i++) {
+    		Character c = matr.charAt(i);
+    		if(!Character.isDigit(c)) {
+    			this.txtRisultato.appendText("Matricola non valida! Matricola formata solo da numeri");
+    			return;
+    		}
+    	}
+    	int matricola = Integer.parseInt(matr);
+    	
     	Studente s = this.studente.getStudente(matricola);
     	if(s==null) {
     	    txtRisultato.appendText("Errore: studente non iscritto!");
     	    return;
     	    }
+    	if (model.isStudenteIscrittoACorso(s, corsoScelto)) {
+			txtRisultato.appendText("Studente già iscritto a questo corso");
+			return;
+		}
+		
+		if (!model.inscriviStudenteACorso(s, corsoScelto)) {
+			txtRisultato.appendText("Errore durante l'iscrizione al corso");
+			return;
+		} else {
+			txtRisultato.appendText("Studente iscritto al corso!");
+		}
+    	}catch(RuntimeException r) {
+    		this.txtRisultato.appendText("ERRORE CON IL DATABASE");
+    	}
+    	
+    }
+    
+    @FXML
+    void doCompleta(ActionEvent event) {
+    	this.txtRisultato.clear();
+    	this.txtNome.clear();
+    	this.txtNome.clear();
+    	try {
+    	int matricola = Integer.parseInt(this.txtMatricola.getText());
+    	Studente s = this.studente.getStudente(matricola);
+    	if(s==null) {
+    	    txtRisultato.appendText("Errore: matricola non presente!");
+    	    return;
+    	    }
     	this.txtCognome.setText(s.getCognome());
     	this.txtNome.setText(s.getNome());
-    	
+    	}catch(NumberFormatException ec) {
+    		this.txtRisultato.appendText("Formato della matricola non corretto!");
+    	}catch(RuntimeException r) {
+    		txtRisultato.setText("ERRORE DI CONNESSIONE AL DATABASE!"); 
+    	}
 
     }
 
@@ -178,7 +238,7 @@ public class FXMLController {
 
     @FXML
     void initialize() {
-        this.loadData();
+        
         assert choiceBox != null : "fx:id=\"choiceBox\" was not injected: check your FXML file 'Scene.fxml'.";
         assert btnCercaIscrittiCorso != null : "fx:id=\"btnCercaIscrittiCorso\" was not injected: check your FXML file 'Scene.fxml'.";
         assert txtMatricola != null : "fx:id=\"txtMatricola\" was not injected: check your FXML file 'Scene.fxml'.";
@@ -194,6 +254,6 @@ public class FXMLController {
 
 	public void setModel(Model model) {
 		this.model = model;
-		
+		this.loadData();
 	}
 }
